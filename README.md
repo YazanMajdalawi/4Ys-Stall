@@ -1,2 +1,2 @@
 # 4Ys-Stall
-E-Commerce webapp our team built while undertaking Dot Jordan's full stack developement training.
+E-Commerce web app our team is building while undertaking Dot Jordan's full-stack development training.
