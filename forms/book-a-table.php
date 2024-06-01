@@ -1,45 +1,112 @@
 <?php
-  /**
-  * Requires the "PHP Email Form" library
-  * The "PHP Email Form" library is available only in the pro version of the template
-  * The library should be uploaded to: vendor/php-email-form/php-email-form.php
-  * For more info and help: https://bootstrapmade.com/php-email-form/
-  */
+include 'config.php'; // Ensure your database configuration is included
 
-  // Replace contact@example.com with your real receiving email address
-  $receiving_email_address = 'contact@example.com';
+// Validate and sanitize input data
+function validate_input($data) {
+  $data = trim($data);
+  $data = stripslashes($data);
+  $data = htmlspecialchars($data);
+  return $data;
+}
 
-  if( file_exists($php_email_form = '../assets/vendor/php-email-form/php-email-form.php' )) {
-    include( $php_email_form );
-  } else {
-    die( 'Unable to load the "PHP Email Form" Library!');
-  }
+$name = $email = $phone = $password = $confirm_password = "";
+$error_message = "";
 
-  $book_a_table = new PHP_Email_Form;
-  $book_a_table->ajax = true;
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+  $name = validate_input($_POST['name']);
+  $email = validate_input($_POST['email']);
+  $phone = validate_input($_POST['phone']);
+  $password = validate_input($_POST['date']); // Assuming 'date' is the password field
+  $confirm_password = validate_input($_POST['time']); // Assuming 'time' is the confirm password field
   
-  $book_a_table->to = $receiving_email_address;
-  $book_a_table->from_name = $_POST['name'];
-  $book_a_table->from_email = $_POST['email'];
-  $book_a_table->subject = "New table booking request from the website";
+  // Validate inputs
+  if (empty($name) || empty($email) || empty($phone) || empty($password) || empty($confirm_password)) {
+    $error_message = "All fields are required.";
+  } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $error_message = "Invalid email format.";
+  } elseif ($password !== $confirm_password) {
+    $error_message = "Passwords do not match.";
+  } else {
+    // Hash the password
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-  // Uncomment below code if you want to use SMTP to send emails. You need to enter your correct SMTP credentials
-  /*
-  $book_a_table->smtp = array(
-    'host' => 'example.com',
-    'username' => 'example',
-    'password' => 'pass',
-    'port' => '587'
-  );
-  */
+    // Insert data into the database
+    $stmt = $conn->prepare("INSERT INTO users (username, email, phone, password) VALUES (?, ?, ?, ?)");
+    $stmt->bind_param("ssss", $name, $email, $phone, $hashed_password);
 
-  $book_a_table->add_message( $_POST['name'], 'Name');
-  $book_a_table->add_message( $_POST['email'], 'Email');
-  $book_a_table->add_message( $_POST['phone'], 'Phone', 4);
-  $book_a_table->add_message( $_POST['date'], 'Date', 4);
-  $book_a_table->add_message( $_POST['time'], 'Time', 4);
-  $book_a_table->add_message( $_POST['people'], '# of people', 1);
-  $book_a_table->add_message( $_POST['message'], 'Message');
+    if ($stmt->execute()) {
+      echo "New record created successfully";
+      $stmt->close();
+      $conn->close();
+      exit;
+    } else {
+      $error_message = "Error: " . $stmt->error;
+    }
 
-  echo $book_a_table->send();
+    $stmt->close();
+    $conn->close();
+  }
+}
 ?>
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>4Ys'Stall - Sign Up</title>
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/main.css" rel="stylesheet">
+</head>
+
+<body>
+    <section id="book-a-table" class="book-a-table">
+        <div class="container" data-aos="fade-up">
+            <div class="section-header">
+                <h2>Sign up</h2>
+                <p>Sign<span>up</span> With Us</p>
+            </div>
+            <div class="row g-0">
+                <div class="col-lg-12 d-flex align-items-center reservation-form-bg">
+                    <form action="book-a-table.php" method="post" role="form" class="php-email-form" data-aos="fade-up"
+                        data-aos-delay="100">
+                        <?php if (!empty($error_message)): ?>
+                        <div class="alert alert-danger"><?php echo $error_message; ?></div>
+                        <?php endif; ?>
+                        <div class="row gy-4">
+                            <div class="col-lg-4 col-md-6">
+                                <input type="text" name="name" class="form-control" id="name" placeholder="Your Name"
+                                    value="<?php echo $name; ?>" required />
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <input type="email" class="form-control" name="email" id="email"
+                                    placeholder="Your Email" value="<?php echo $email; ?>" required />
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <input type="text" class="form-control" name="phone" id="phone" placeholder="Your Phone"
+                                    value="<?php echo $phone; ?>" required />
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <input type="password" name="date" class="form-control" id="date" placeholder="Password"
+                                    required />
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <input type="password" class="form-control" name="time" id="time"
+                                    placeholder="Confirm password" required />
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="loading">Loading</div>
+                            <div class="error-message"></div>
+                            <div class="sent-message">Signing you up!</div>
+                        </div>
+                        <div class="text-center"><button type="submit">Sign up</button></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+
+</html>
